@@ -1,0 +1,12 @@
+Hướng dẫn sử dụng:
+
+B1: Download file về máy
+B2: Dùng OBS/Streamlab và tạo một browser source
+B3: Chọn Local File và mở file đã tải lên, chỉnh custom fps thành 60 để animation mượt hơn
+B4: Chỉnh kích thước source sao cho phù hợp với nhu cầu của bạn (Lưu ý là chỉ chỉnh được height thôi nha)
+B5: Mở file đã tải về bằng word/notepad và thay height bạn đang cần vào chỗ mình đã note ở phía gần file (Chịu khó tìm giúp mình nha).
+B6: Nếu trong lúc setup/dùng bạn thấy không xuất hiện chat của subscriber/mod thì chịu khó refresh lại cái source lại 2-3 lần để nó load nha.
+
+Cảm ơn bạn đã đặt comm.
+
+Nếu cần giúp đỡ bạn có thể liên hệ thông qua Botto nha.

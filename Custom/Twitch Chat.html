@@ -1,0 +1,755 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitch chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
+</head>
+<body>
+    
+   
+    <div id="chat">
+        <ul>
+        </ul>
+    </div>
+
+    <script>
+        var badge_all = [];
+        var ttv_emotes = []
+       var token = {};
+       Promise.all(
+        [
+            fetch("https://api.betterttv.net/3/cached/users/twitch/712988298", 
+            {
+                    method: "get",
+            }).then(res => res.json()).then((value) => {
+                if (value["message"] != 'user not found') {
+                    for (let i = 0; i < value["sharedEmotes"].length; i++)
+                {
+                    ttv_emotes.push(value["sharedEmotes"][i]);
+                }
+            }
+        }),
+            fetch("https://api.betterttv.net/3/cached/emotes/global",
+            {
+                    method: "get",
+            }).then(res => res.json()).then((value) => {
+                for (let i = 0; i < value.length; i++)
+                {
+                    ttv_emotes.push(value[i]);
+                }
+            }
+            )
+        ]
+       )
+       console.log(ttv_emotes);
+       //Get access token 
+       Promise.all([
+       fetch("https://id.twitch.tv/oauth2/token?client_id=9rn95mbiwpa62z3n2cbl92cpoap89o&client_secret=xngnfllk74xv9ousgk42t988h03xsm&grant_type=client_credentials", {
+                method: "post",
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                }).then(res => res.json())
+                .then((value) => {
+                    token = Object.assign(value, token);
+                    Promise.all(
+                        [
+                            fetch(
+                                "https://api.twitch.tv/helix/chat/badges/global",
+                                    { 
+                                    method: "get",
+                                    headers: 
+                                    {
+                                        'Authorization': 'Bearer ' + token["access_token"],
+                                        'Client-Id': '9rn95mbiwpa62z3n2cbl92cpoap89o',
+                                    }
+                                }
+                            ).then(res => res.json()),
+                        ]
+                    ).then((value) => {
+                        for (let a = 0; a<value[0]["data"].length; a++)
+                        badge_all.push(value[0]["data"][a]);
+                    })
+                    Promise.all(
+                        [
+                            fetch(
+                                "https://api.twitch.tv/helix/chat/badges?broadcaster_id=712988298", //Thay ID của User vào đây
+                                { 
+                                    method: "get",
+                                    headers: 
+                                    {
+                                        'Authorization': 'Bearer ' + token["access_token"],
+                                        'Client-Id': '9rn95mbiwpa62z3n2cbl92cpoap89o',
+                                    }
+                                }
+                            ).then(res => res.json())
+                        ]).then((value) =>
+                        {   
+                            if (badge_all[0] != {} && value[0]["data"][0] != null) 
+                                {
+                                    badge_all[84] = value[0]["data"][0];
+                                }
+                            
+                        }
+                        )
+                }
+                )
+            ])
+       
+        //Get badge data from twitch
+          
+        var chat = document.querySelector("#chat>ul");
+    ComfyJS.onChat = (user, message, flags, self, extra) => {
+        var newMessage = document.createElement("li");
+        var username = document.createElement("blockquote");
+        var outline = document.createElement("div");
+        var user_mes = document.createElement("blockquote");
+        var messageHTML;
+
+
+        //Emote handling
+        console.log(extra.messageEmotes);
+        if (extra.messageEmotes == null) {
+            messageHTML = message;
+        }
+        else {
+                var stringReplacements = [];
+
+                Object.entries(extra.messageEmotes).forEach(([id, positions]) => 
+                {
+                    const position = positions[0];
+    const [start, end] = position.split("-");
+    const stringToReplace = message.substring(
+      parseInt(start, 10),
+      parseInt(end, 10) + 1
+    );
+
+    stringReplacements.push({
+      stringToReplace: stringToReplace,
+      replacement: `<img src="https://static-cdn.jtvnw.net/emoticons/v2/${id}/default/light/2.0">`,
+                })
+            
+                });
+            
+                messageHTML = stringReplacements.reduce(
+         (acc, { stringToReplace, replacement }) => {
+      // obs browser doesn't seem to know about replaceAll
+      return acc.split(stringToReplace).join(replacement);
+        },
+    message
+    );
+        }
+        for (let i = 0; i < ttv_emotes.length; i++)
+    {
+        var imgsrc = '<img src = "https://cdn.betterttv.net/emote/' + ttv_emotes[i]["id"] + '/2x.webp">';
+        var strVar = ttv_emotes[i]["code"];
+        var regex = new RegExp(`(${strVar})`, 'ig');
+        messageHTML = messageHTML.replaceAll(regex, imgsrc);
+    }
+    user_mes.innerHTML = messageHTML;
+
+// End of EmoteHandling
+
+//Badge Handling
+
+
+    var temp = 0
+    const stringReplacements2 = [];
+    username.innerHTML = user;
+    var user1 = username.innerHTML;
+    if (!extra.userBadges) {
+        username.append(user);
+    }
+    else {
+    Object.entries(extra.userBadges).forEach(([id1, versions1]) => {
+        var num = 0;
+        for (let i = 0; i<badge_all.length; i++){
+        if (badge_all[i]["set_id"] == id1) {
+        user1 = " " + user1;
+        for (let j = 0; j<badge_all[i]["versions"].length; j++)
+        {
+            if (badge_all[i]["versions"][j]["id"] == versions1)
+            {
+                num = j;
+            }
+        }
+        stringReplacements2.push({
+        stringToReplace: user,
+        replacement: "<img src =\"" + badge_all[i]["versions"][num]["image_url_2x"] + "\">" + " " + user,
+        })
+        const userHTML = stringReplacements2.reduce(
+         (acc, { stringToReplace, replacement }) => {
+      // obs browser doesn't seam to know about replaceAll
+      return acc.split(stringToReplace).join(replacement);
+        },
+    user1
+    );
+    username.innerHTML = userHTML;
+
+    }}})};
+
+//End of Badge Handling
+    
+//Layout
+        
+    newMessage.id= "box";
+    outline.id = "outline";
+    var ribbon = document.createElement("div");
+    ribbon.id = "ribbon";
+    outline.append(ribbon);
+
+        if (flags.broadcaster || flags.mod) {
+            var leftpinkstar_mod = document.createElement("div");
+            var rightpinkstar_mod = document.createElement("div");
+            var toprightstar_mod = document.createElement("div");
+
+            
+            leftpinkstar_mod.id = "leftpinkstar_mod";
+            rightpinkstar_mod.id = "rightpinkstar_mod";
+            toprightstar_mod.id = "toprightstar_mod";
+            username.id = "username_mod";
+            user_mes.id = "message_mod";
+        
+
+            outline.append(leftpinkstar_mod);
+            outline.append(toprightstar_mod);
+            outline.append(rightpinkstar_mod);
+            outline.append(user_mes);
+            newMessage.append(username);
+            newMessage.append(outline);
+            chat.append(newMessage);
+        }
+        else if (flags.subscriber || flags.vip)
+        {
+            var leftpinkstar_sub = document.createElement("div");
+            var rightpinkstar_sub = document.createElement("div");
+            var toprightstar_sub = document.createElement("div");
+
+            
+            leftpinkstar_sub.id = "leftpinkstar_sub";
+            rightpinkstar_sub.id = "rightpinkstar_sub";
+            toprightstar_sub.id = "toprightstar_sub";
+            username.id = "username_sub";
+            user_mes.id = "message_sub";
+        
+            outline.append(leftpinkstar_sub);
+            outline.append(toprightstar_sub);
+            outline.append(rightpinkstar_sub);
+            outline.append(user_mes);
+            newMessage.append(username);
+            newMessage.append(outline);
+            chat.append(newMessage);
+        }
+        else {
+            var leftpinkstar_normal = document.createElement("div");
+            var rightpinkstar_normal = document.createElement("div");
+            var toprightstar_normal = document.createElement("div");
+            
+
+            
+            leftpinkstar_normal.id = "leftpinkstar_normal";
+            rightpinkstar_normal.id = "rightpinkstar_normal";
+            toprightstar_normal.id = "toprightstar_normal";
+            username.id = "username";
+            user_mes.id = "message";
+        
+
+            
+            outline.append(leftpinkstar_normal);
+            outline.append(toprightstar_normal);
+            outline.append(rightpinkstar_normal);
+            outline.append(user_mes);
+            newMessage.append(username);
+            newMessage.append(outline);
+            chat.append(newMessage);
+        }
+
+    };
+   
+   ComfyJS.onRaid = (user, viewer, extra) =>  {
+        var newRaidAlert = document.createElement("li");
+        var AlertMessage = user + " raided with " + viewer;
+        var AlertBox = document.createElement("blockquote");
+        var RaidOutline = document.createElement("div");
+        var bell_raid = document.createElement("div");
+        var backstar_raid = document.createElement("div");
+
+        RaidOutline.id = "raidbox";
+        AlertBox.id = "raidtext";
+        bell_raid.id = "bell_raid";
+        backstar_raid.id = "backstar_raid";
+        newRaidAlert.id = "raidchat" ;
+
+        AlertBox.append(AlertMessage);
+        RaidOutline.append(bell_raid);
+        RaidOutline.append(AlertBox);
+        RaidOutline.append(backstar_raid);
+        newRaidAlert.append(RaidOutline);
+        chat.append(newRaidAlert);
+   }
+
+   ComfyJS.onCheer = (user, message, bits, flags, extra ) =>  {
+        var cheerMessage = user + " cheered " + bits;
+        var newRaidAlert = document.createElement("li");
+        var AlertBox = document.createElement("blockquote");
+        var RaidOutline = document.createElement("div");
+        var bell_raid = document.createElement("div");
+        var backstar_raid = document.createElement("div");
+
+        RaidOutline.id = "raidbox";
+        AlertBox.id = "raidtext";
+        bell_raid.id = "bell_raid";
+        backstar_raid.id = "backstar_raid";
+        newRaidAlert.id = "raidchat" ;
+
+        AlertBox.append(cheerMessage);
+        RaidOutline.append(bell_raid);
+        RaidOutline.append(AlertBox);
+        RaidOutline.append(backstar_raid);
+        newRaidAlert.append(RaidOutline);
+        chat.append(newRaidAlert);
+   }
+
+   ComfyJS.onSub = ( user, message, subTierInfo, extra ) =>  {
+        var newSubMessage = user + " just subscribe";
+        var newRaidAlert = document.createElement("li");
+        var AlertBox = document.createElement("blockquote");
+        var RaidOutline = document.createElement("div");
+        var bell_raid = document.createElement("div");
+        var backstar_raid = document.createElement("div");
+
+        RaidOutline.id = "raidbox";
+        AlertBox.id = "raidtext";
+        bell_raid.id = "bell_raid";
+        backstar_raid.id = "backstar_raid";
+        newRaidAlert.id = "raidchat" ;
+
+        AlertBox.append(newSubMessage);
+        RaidOutline.append(bell_raid);
+        RaidOutline.append(AlertBox);
+        RaidOutline.append(backstar_raid);
+        newRaidAlert.append(RaidOutline);
+        chat.append(newRaidAlert);
+   }
+    
+   ComfyJS.onResub = ( user, message, streamMonths, cumulativeMonths, subTierInfo, extra ) => {
+        var reSubMessage = user + " just resub " + cumulativeMonths;
+        var newRaidAlert = document.createElement("li");
+        var AlertBox = document.createElement("blockquote");
+        var RaidOutline = document.createElement("div");
+        var bell_raid = document.createElement("div");
+        var backstar_raid = document.createElement("div");
+
+        RaidOutline.id = "raidbox";
+        AlertBox.id = "raidtext";
+        bell_raid.id = "bell_raid";
+        backstar_raid.id = "backstar_raid";
+        newRaidAlert.id = "raidchat" ;
+
+        AlertBox.append(reSubMessage);
+        RaidOutline.append(bell_raid);
+        RaidOutline.append(AlertBox);
+        RaidOutline.append(backstar_raid);
+        newRaidAlert.append(RaidOutline);
+        chat.append(newRaidAlert);
+   }
+
+   ComfyJS.onSubGift = ( gifterUser, streakMonths, recipientUser, senderCount, subTierInfo, extra ) => {
+        var giftMessage = gifterUser + " gifted " + recipientUser + "  " + senderCount + " " + subTierInfo;
+        var newRaidAlert = document.createElement("li");
+        var AlertBox = document.createElement("blockquote");
+        var RaidOutline = document.createElement("div");
+        var bell_raid = document.createElement("div");
+        var backstar_raid = document.createElement("div");
+
+        RaidOutline.id = "raidbox";
+        AlertBox.id = "raidtext";
+        bell_raid.id = "bell_raid";
+        backstar_raid.id = "backstar_raid";
+        newRaidAlert.id = "raidchat" ;
+
+        AlertBox.append(giftMessage);
+        RaidOutline.append(bell_raid);
+        RaidOutline.append(AlertBox);
+        RaidOutline.append(backstar_raid);
+        newRaidAlert.append(RaidOutline);
+        chat.append(newRaidAlert);
+   }
+
+   ComfyJS.onSubMysteryGift = ( gifterUser, numbOfSubs, senderCount, subTierInfo, extra ) => {
+        var mgiftMessage = gifterUser + " gifted " + senderCount + " " + subTierInfo;
+        var newRaidAlert = document.createElement("li");
+        var AlertBox = document.createElement("blockquote");
+        var RaidOutline = document.createElement("div");
+        var bell_raid = document.createElement("div");
+        var backstar_raid = document.createElement("div");
+
+        RaidOutline.id = "raidbox";
+        AlertBox.id = "raidtext";
+        bell_raid.id = "bell_raid";
+        backstar_raid.id = "backstar_raid";
+        newRaidAlert.id = "raidchat" ;
+
+        AlertBox.append(mgiftMessage);
+        RaidOutline.append(bell_raid);
+        RaidOutline.append(AlertBox);
+        RaidOutline.append(backstar_raid);
+        newRaidAlert.append(RaidOutline);
+        chat.append(newRaidAlert);
+   }
+    
+
+    ComfyJS.Init("rena_mizukawa");
+    
+
+        </script>
+
+    <style>
+@import url("https://fonts.googleapis.com/css?family=M+PLUS+Rounded+1c:700,900");
+
+
+
+
+
+
+
+#chat {
+    width: 1200px;   /* <= Thay height vào đây*/
+    height: 600px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+    background: transparent;
+    padding-bottom: 0px;
+}
+
+#chat::-webkit-scrollbar {
+    display: none;
+}
+
+#chat ul {
+    list-style-type: none;
+    list-style-position: outside;
+}
+
+#box {
+    padding: 23px 0px;
+    padding-bottom: 40px !important;
+    width: 1200;
+    animation: slide-in-left 600ms both ease-in-out;
+}
+
+/*************************************************************************/
+                        /* Normal Assets*/
+
+
+#ribbon {
+    content: url("https://drive.google.com/uc?id=1seW2FGQPkkdjrj8kI3pHZkCw9vIKyZz3");
+    display: flex;
+    width: 65px;
+    position: absolute;
+    z-index: 10;
+    top: -25px;
+    left: 60px;
+    animation: jello-horizontal 1s both ease-in-out;
+    animation-delay: 650ms;
+}
+
+#toprightstar_normal {
+    content: url("https://drive.google.com/uc?id=1NYgTF20aTwNtwPayzKP7porWXvHpMuYV");
+    display: flex;
+    width: 100px;
+    position: absolute;
+    right: -40px;
+    top: -28px;
+    z-index: 9;
+}
+
+#leftpinkstar_normal {
+    content: url("https://drive.google.com/uc?id=18HFemddHcHRwtttCJ8qNHmzuxORHdLxp");
+    display: flex;
+    width: 50px;
+    bottom: -20px;
+    height: fit-content;
+    position: absolute;
+    margin-right: 30px;
+    z-index: 8;
+}
+
+#rightpinkstar_normal {
+    content: url("https://drive.google.com/uc?id=1dW5q028qaelD7EQhb-EoHGuHP59yy3c8");
+    display: flex;
+    width: 50px;
+    height: fit-content;
+    bottom: -20px;
+    right: -116px;
+    position: absolute;
+    z-index: 8;
+    margin-left: 30px;
+}
+
+/*************************************************************************/
+                    /* Subscriber Assets */
+
+
+
+#toprightstar_sub {
+    content: url("https://drive.google.com/uc?id=1laTgrfAHkwkLMYzQxHS14oTUg2mW3m8Y");
+    display: flex;
+    width: 100px;
+    position: absolute;
+    right: -40px;
+    top: -28px;
+    z-index: 9;
+}
+
+#leftpinkstar_sub {
+    content: url("https://drive.google.com/uc?id=1t_tfgUzvfE1rvlBVje7hAgWuPZwmNro2");
+    display: flex;
+    width: 50px;
+    bottom: -20px;
+    height: fit-content;
+    position: absolute;
+    margin-right: 30px;
+    z-index: 8;
+}
+
+#rightpinkstar_sub {
+    content: url("https://drive.google.com/uc?id=1n5eG5djvbBGT-Zy3-_Q0WrNnqKFSdkRv");
+    display: flex;
+    width: 50px;
+    height: fit-content;
+    bottom: -20px;
+    right: -116px;
+    position: absolute;
+    z-index: 8;
+    margin-left: 30px;
+}
+
+#message_sub {
+    font-size: 34px;
+    position: relative;
+    width: 600px !important;
+    min-height: 100%;
+    margin: -1px;
+    padding: 50px 50px;
+    margin-top: -18px;
+    left: 60px;
+    background: #ffffff;
+    margin-bottom: -41px;
+    word-break: break-all;
+    font-family: "M PLUS Rounded 1c", sans serif;
+    z-index: -4;
+    color: #ff949b;
+    border-radius: 70px;
+    box-shadow: -2px 7px 3px 1px #fcd58d;
+}
+#username_sub {
+    border-radius: 40px;
+    font-size: 27px;
+    position: relative;
+    font-family: "M PLUS Rounded 1c", sans serif;
+    padding: 10px;
+    max-width: 320px;
+    width: fit-content;
+    word-wrap: normal;
+    top: 50px;
+    left: 100px;
+    padding-left: 40px;
+    padding-right: 60px;
+    overflow: hidden;
+    z-index: 99;
+    background-color: #fcd58d;
+    color: #ffffff;
+
+}
+
+/*************************************************************************/
+            /* Broadcaster Assets */
+        
+#toprightstar_mod {
+    content: url("https://drive.google.com/uc?id=1gbsi9z8HLzmFtVMPmy0nKmMFt-np24ij");
+    display: flex;
+    width: 100px;
+    position: absolute;
+    right: -40px;
+    top: -28px;
+    z-index: 9;
+}
+
+#leftpinkstar_mod {
+    content: url("https://drive.google.com/uc?id=1DlmzGkicvA5XP_h3Mx3urDDz-VOKZ9Er");
+    display: flex;
+    width: 50px;
+    bottom: -20px;
+    height: fit-content;
+    position: absolute;
+    margin-right: 30px;
+    z-index: 8;
+}
+
+#rightpinkstar_mod {
+    content: url("https://drive.google.com/uc?id=1Q53-WwNHvCbcZW-jaxL42ag-0rm3tifg");
+    display: flex;
+    width: 50px;
+    height: fit-content;
+    bottom: -20px;
+    right: -116px;
+    position: absolute;
+    z-index: 8;
+    margin-left: 30px;
+}
+
+#message_mod {
+    font-size: 34px;
+    position: relative;
+    width: 600px !important;
+    min-height: 100%;
+    margin: -1px;
+    padding: 50px 50px;
+    margin-top: -18px;
+    left: 60px;
+    background: #ff949b;
+    margin-bottom: -41px;
+    word-break: break-all;
+    font-family: "M PLUS Rounded 1c", sans serif;
+    z-index: -4;
+    color: #ffffff;
+    border-radius: 70px;
+    box-shadow: -2px 7px 3px 1px #e17277;
+}
+#username_mod {
+    border-radius: 40px;
+    font-size: 27px;
+    position: relative;
+    font-family: "M PLUS Rounded 1c", sans serif;
+    padding: 10px;
+    max-width: 320px; 
+    width: fit-content;
+    word-wrap: normal;
+    top: 50px;
+    left: 100px;
+    padding-left: 40px;
+    padding-right: 60px;
+    overflow: hidden;
+    z-index: 99;
+    background-color: #ffffff;
+    color: #ff7e85;
+}
+
+/*************************************************************************/
+            /* Raid + Cheer + NewSub Alert Assets */
+
+#raidtext {
+    padding: 0px 80px;
+    padding-right: 30px;
+    font-size: 31px;
+    font-family: "M PLUS Rounded 1c", sans serif;
+    font-weight: 500;
+    word-wrap: break-word;
+    top: 4px;
+    position: relative;
+    overflow: hidden;
+    color: white;
+    z-index: 1;   
+    height: fit-content;
+}
+
+#raidbox {
+   display: flex;
+    background: #ef8085 ;
+    border-radius: 80px;
+    width: fit-content;
+    max-width: 650px;
+    flex-direction: row;
+    position: relative;
+}
+
+#raidchat {
+    width: 700px;
+    margin-top: 100px;
+    animation: slide-in-left 500ms both ease-in-out;
+}
+
+#bell_raid {
+    content: url("https://drive.google.com/uc?id=1Nei8twAgjXNOTCBAZxn7GcD7hBRGBsZU");
+    width: 45px;
+    height: fit-content;
+    position: absolute;
+    z-index: 13;
+    display: flex;
+    left: 20px;
+    top: 35%;
+    animation: jello-horizontal 1s both ease-in-out;
+    animation-delay: 500ms;
+}
+
+#backstar_raid {
+    content: url("https://drive.google.com/uc?id=17RRQlvlwLndc9RqnoxvRFRnQpAvbfBbR");
+    width: 40px;
+    height: fit-content;
+    position: absolute;
+    right: -50px;
+    bottom: 20px;
+    display: flex;
+    z-index: 15;
+}
+
+
+/*  */
+
+#outline {
+    position: relative;
+    top: 0px;
+    left: 10px;
+    width: 650;
+    min-height: 20px;
+    display: inline-flex;
+    margin-top: 10px;
+    overflow: visible;
+}
+
+#message {
+    font-size: 34px;
+    position: relative;
+    width: 600px !important;
+    min-height: 100%;
+    margin: -1px;
+    padding: 50px 50px;
+    margin-top: -18px;
+    left: 60px;
+    background: #ffffff;
+    margin-bottom: -41px;
+    word-break: break-all;
+    font-family: "M PLUS Rounded 1c", sans serif;
+    z-index: -4;
+    color: #ff949b;
+    border-radius: 70px;
+    box-shadow: -2px 7px 3px 1px #ff949b;
+}
+#username {
+    border-radius: 40px;
+    font-size: 27px;
+    position: relative;
+    font-family: "M PLUS Rounded 1c", sans serif;
+    padding: 10px;
+    top: 50px;
+    left: 100px;
+    max-width: 320px;
+    width: fit-content;
+    word-wrap: normal;
+    padding-left: 40px;
+    padding-right: 60px;
+    overflow: hidden;
+    z-index: 99;
+    background-color: #ff949b;
+    color: #ffffff;
+}
+
+
+    </style>
+</body>
+</html>
